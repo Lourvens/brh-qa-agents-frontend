@@ -1,7 +1,4 @@
-import {
-  ArrowUpIcon,
-  SquareIcon,
-} from "lucide-react";
+import { ArrowUpIcon, SquareIcon } from "lucide-react";
 import type { ChatStatus } from "ai";
 import { useState, useEffect } from "react";
 
@@ -40,7 +37,9 @@ export function PromptDock({
   // SSR-stable placeholder (matches both server and first client render).
   // After mount we rotate through the list so the user sees varied copy
   // over time, without triggering a hydration mismatch on `Date.now()`.
-  const [placeholder, setPlaceholder] = useState(PLACEHOLDER_PROMPTS[0]);
+  const [placeholder, setPlaceholder] = useState<string>(
+    PLACEHOLDER_PROMPTS[0],
+  );
   useEffect(() => {
     const i = Math.floor((Date.now() / 8000) % PLACEHOLDER_PROMPTS.length);
     setPlaceholder(PLACEHOLDER_PROMPTS[i]);

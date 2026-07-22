@@ -1,15 +1,19 @@
 "use client";
 
 import { useControllableState } from "@radix-ui/react-use-controllable-state";
-import {
-  Collapsible,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { Collapsible, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { BrainIcon, ChevronDownIcon } from "lucide-react";
 import { motion } from "motion/react";
 import type { ComponentProps, ReactNode } from "react";
-import { createContext, memo, useContext, useEffect, useRef, useState } from "react";
+import {
+  createContext,
+  memo,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { Streamdown } from "streamdown";
 import { Shimmer } from "./shimmer";
 
@@ -115,10 +119,12 @@ export const Reasoning = memo(
         </Collapsible>
       </ReasoningContext.Provider>
     );
-  }
+  },
 );
 
-export type ReasoningTriggerProps = ComponentProps<typeof CollapsibleTrigger> & {
+export type ReasoningTriggerProps = ComponentProps<
+  typeof CollapsibleTrigger
+> & {
   /** Render the label/icon area of the trigger. Receives the streaming
    *  state so callers can render their own pulsing-dot / "thinking" copy.
    *  When omitted, falls back to the BrainIcon + localized label. */
@@ -127,10 +133,7 @@ export type ReasoningTriggerProps = ComponentProps<typeof CollapsibleTrigger> & 
     duration?: number;
     isOpen: boolean;
   }) => ReactNode;
-  getThinkingMessage?: (
-    isStreaming: boolean,
-    duration?: number,
-  ) => ReactNode;
+  getThinkingMessage?: (isStreaming: boolean, duration?: number) => ReactNode;
 };
 
 function formatDuration(d?: number): string | null {
@@ -142,10 +145,7 @@ function formatDuration(d?: number): string | null {
 
 /** Default French label — see UIUX-PRINCIPLES.md §7 for the operator-grade
  *  rationale (compact, low chrome). */
-const defaultGetThinkingMessage = (
-  isStreaming: boolean,
-  duration?: number,
-) => {
+const defaultGetThinkingMessage = (isStreaming: boolean, duration?: number) => {
   if (isStreaming || duration === 0) {
     return <Shimmer duration={1}>Réflexion en cours…</Shimmer>;
   }
@@ -218,7 +218,7 @@ export const ReasoningTrigger = memo(
         </motion.span>
       </CollapsibleTrigger>
     );
-  }
+  },
 );
 
 export type ReasoningContentProps = ComponentProps<"div"> & {
@@ -226,7 +226,7 @@ export type ReasoningContentProps = ComponentProps<"div"> & {
 };
 
 export const ReasoningContent = memo(
-  ({ className, children, ...props }: ReasoningContentProps) => {
+  ({ className, children }: ReasoningContentProps) => {
     const { isOpen, isStreaming } = useReasoning();
     // Mount the panel *once* and toggle via framer-motion's `animate`
     // key on `isOpen`. Tearing down + re-creating with AnimatePresence
@@ -293,7 +293,6 @@ export const ReasoningContent = memo(
           "overflow-hidden border-border/40 border-t text-muted-foreground",
           className,
         )}
-        {...props}
       >
         <div
           ref={innerRef}
@@ -304,15 +303,13 @@ export const ReasoningContent = memo(
             userScrolledRef.current = !atBottom;
           }}
           className="brh-prose max-h-[var(--brh-reasoning-max-h)] overflow-y-auto px-3 py-2 text-xs leading-5 scroll-smooth"
-          style={{ ["--brh-reasoning-max-h" as string]: `${REASONING_MAX_HEIGHT}px` }}
+          style={{
+            ["--brh-reasoning-max-h" as string]: `${REASONING_MAX_HEIGHT}px`,
+          }}
         >
           <Streamdown>{children}</Streamdown>
         </div>
       </motion.div>
     );
-  }
+  },
 );
-
-Reasoning.displayName = "Reasoning";
-ReasoningTrigger.displayName = "ReasoningTrigger";
-ReasoningContent.displayName = "ReasoningContent";
