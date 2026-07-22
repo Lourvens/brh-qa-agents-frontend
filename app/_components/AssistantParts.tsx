@@ -5,15 +5,16 @@ import {
   SourcesTrigger,
 } from "@/components/ai-elements/sources";
 import { MessageResponse } from "@/components/ai-elements/message";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { UIMessage } from "ai";
 
 import { useSmoothStreamingText } from "@/hooks/useSmoothStreamingText";
+import { useReadyzProbe } from "@/hooks/useReadyzProbe";
 import { A2uiSurfaceList } from "./a2ui/surface-list";
 import { AgentStatus } from "./AgentStatus";
 import { AgentTrace } from "./AgentTrace";
 import {
-  agentPhase,
+  effectiveAgentPhase,
   sourceParts,
   textParts,
 } from "../_lib/message-parts";
@@ -31,7 +32,27 @@ export function AssistantParts({
 }) {
   const sources = useMemo(() => sourceParts(parts), [parts]);
   const body = useMemo(() => textParts(parts), [parts]);
-  const phase = useMemo(() => agentPhase(parts, streaming), [parts, streaming]);
+
+  // Cold-start awareness: track how long we've been waiting for the first
+  // SSE byte. The tick interval is 1s, which is plenty of granularity for
+  // the 5s/15s/35s phase escalation thresholds in `effectiveAgentPhase`.
+  const [elapsedMs, setElapsedMs] = useState(0);
+  useEffect(() => {
+    if (!streaming) {
+      setElapsedMs(0);
+      return;
+    }
+    const startedAt = Date.now();
+    setElapsedMs(0);
+    const id = setInterval(() => setElapsedMs(Date.now() - startedAt), 1000);
+    return () => clearInterval(id);
+  }, [streaming]);
+
+  const readyz = useReadyzProbe(streaming);
+  const phase = useMemo(
+    () => effectiveAgentPhase(parts, streaming, elapsedMs, readyz),
+    [parts, streaming, elapsedMs, readyz],
+  );
   // Smooth character reveal — buffers SSE deltas and releases them at a
   // controlled cps so the user sees a steady stream rather than bursty
   // chunks. See hooks/useSmoothStreamingText.ts.

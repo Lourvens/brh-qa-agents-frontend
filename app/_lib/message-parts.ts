@@ -1,5 +1,7 @@
 import type { UIMessage } from "ai";
 
+import type { ReadyzState } from "@/hooks/useReadyzProbe";
+
 /* ---------------------------------------------------------------------------
  * Pure functions for extracting typed content from a `UIMessage.parts`
  * array. No JSX, no hooks — only data shaping, so any future reader/test
@@ -83,7 +85,11 @@ export type AgentPhase =
   | "reading"
   | "rethinking"
   | "researching"
-  | "writing";
+  | "writing"
+  | "connecting"
+  | "cold-start"
+  | "patient-waiting"
+  | "unreachable";
 
 export function agentPhase(
   parts: UIMessage["parts"],
@@ -111,4 +117,32 @@ export function agentPhase(
   if (hasToolOutput) return tools.length > 1 ? "rethinking" : "reading";
   if (tools.length > 0) return "reading";
   return "thinking";
+}
+
+/**
+ * Wraps `agentPhase` with a time- and readiness-aware escalation layer for
+ * the cold-start window. Only overrides when the underlying phase is
+ * `"thinking"` (i.e. no SSE parts have arrived yet) — real agent activity
+ * always wins so we never talk over a working agent.
+ */
+export function effectiveAgentPhase(
+  parts: UIMessage["parts"],
+  streaming: boolean,
+  elapsedMs: number,
+  readyz: ReadyzState,
+): AgentPhase {
+  const base = agentPhase(parts, streaming);
+  if (base !== "thinking") return base;
+  if (!streaming) return "idle";
+
+  if (readyz.status === "unreachable") return "unreachable";
+
+  if (elapsedMs < 5000) return "thinking";
+  if (elapsedMs < 15000) {
+    return readyz.status === "warming" ? "cold-start" : "connecting";
+  }
+  if (elapsedMs < 35000) {
+    return readyz.status === "ready" ? "connecting" : "patient-waiting";
+  }
+  return "patient-waiting";
 }

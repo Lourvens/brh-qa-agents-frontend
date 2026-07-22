@@ -40,6 +40,26 @@ const STATUS_COPY: Record<ActivePhase, readonly [string, string, string]> = {
     "Synthèse des informations recueillies…",
     "Mise en forme de votre réponse…",
   ],
+  connecting: [
+    "Connexion à l'agent BRH…",
+    "Établissement de la liaison avec le serveur…",
+    "L'agent se prépare à répondre…",
+  ],
+  "cold-start": [
+    "Le serveur démarre après une période d'inactivité…",
+    "Réveil du serveur en cours (hébergement gratuit, jusqu'à 60 secondes)…",
+    "Initialisation de l'agent BRH, merci de patienter…",
+  ],
+  "patient-waiting": [
+    "Encore quelques instants, l'agent finalise son démarrage…",
+    "Le serveur termine sa mise en route, presque prêt…",
+    "Patience, la réponse arrive d'ici quelques secondes…",
+  ],
+  unreachable: [
+    "Serveur momentanément inaccessible, nouvelle tentative…",
+    "Connexion au serveur impossible pour l'instant…",
+    "Impossible de joindre le serveur BRH, merci de patienter…",
+  ],
 };
 
 function randomStatus(phase: ActivePhase): string {
