@@ -18,6 +18,7 @@ import { AssistantParts } from "./_components/AssistantParts";
 import { EmptyConversation } from "./_components/EmptyConversation";
 import { ErrorBanner } from "./_components/ErrorBanner";
 import { Header } from "./_components/Header";
+import { PendingAssistantMessage } from "./_components/PendingAssistantMessage";
 import { PromptDock } from "./_components/PromptDock";
 import { RateLimitModal } from "./_components/RateLimitModal";
 import { ThreadLimitBanner } from "./_components/ThreadLimitBanner";
@@ -146,28 +147,37 @@ export default function ChatPage() {
               suggestionChips={SUGGESTIONS}
             />
           ) : (
-            messages.map((message) => {
-              const isLastAssistant =
-                message.role === "assistant" &&
-                message.id === messages[messages.length - 1]?.id;
-              const streaming = isLastAssistant && isStreaming;
-              return (
-                <Message key={message.id} from={message.role}>
-                  <MessageContent>
-                    {message.role === "assistant" ? (
-                      <AssistantParts
-                        parts={message.parts}
-                        streaming={streaming}
-                      />
-                    ) : (
-                      <p className="whitespace-pre-wrap text-base leading-relaxed">
-                        {textParts(message.parts)}
-                      </p>
-                    )}
-                  </MessageContent>
-                </Message>
-              );
-            })
+            <>
+              {messages.map((message) => {
+                const isLastAssistant =
+                  message.role === "assistant" &&
+                  message.id === messages[messages.length - 1]?.id;
+                const streaming = isLastAssistant && isStreaming;
+                return (
+                  <Message key={message.id} from={message.role}>
+                    <MessageContent>
+                      {message.role === "assistant" ? (
+                        <AssistantParts
+                          parts={message.parts}
+                          streaming={streaming}
+                        />
+                      ) : (
+                        <p className="whitespace-pre-wrap text-base leading-relaxed">
+                          {textParts(message.parts)}
+                        </p>
+                      )}
+                    </MessageContent>
+                  </Message>
+                );
+              })}
+              {/* TTFT placeholder — visible only while status === "submitted"
+                  and the assistant message has not yet been created (i.e. the
+                  first SSE byte is still in flight, typically the Render
+                  free-tier cold-start window). Mirrors the AgentStatus phase
+                  escalation that AssistantParts mounts once the real message
+                  lands, so the user always sees a server-state indicator. */}
+              {status === "submitted" ? <PendingAssistantMessage /> : null}
+            </>
           )}
         </ConversationContent>
         <ConversationScrollButton />
