@@ -2,7 +2,7 @@
 
 import { DefaultChatTransport } from "ai";
 import { useChat } from "@ai-sdk/react";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   Conversation,
@@ -19,7 +19,9 @@ import { EmptyConversation } from "./_components/EmptyConversation";
 import { ErrorBanner } from "./_components/ErrorBanner";
 import { Header } from "./_components/Header";
 import { PromptDock } from "./_components/PromptDock";
+import { RateLimitModal } from "./_components/RateLimitModal";
 import { ThreadLimitBanner } from "./_components/ThreadLimitBanner";
+import { parseRateLimit, type RateLimitInfo } from "./_lib/rate-limit";
 import { textParts } from "./_lib/message-parts";
 import { SUGGESTIONS } from "./_lib/prompts";
 import { MAX_MESSAGES_PER_THREAD } from "./_lib/thread-config";
@@ -65,6 +67,21 @@ export default function ChatPage() {
 
   const isStreaming = status === "submitted" || status === "streaming";
   const atLimit = messages.length >= MAX_MESSAGES_PER_THREAD;
+
+  // Rate-limit detection: when the backend returns 429 from /ask,
+  // the AI SDK surfaces a fetch error whose `cause` carries the
+  // Response. We extract the typed info; if non-null, the modal
+  // stays open until the user clicks "Compris". Stays sticky so a
+  // dismissal via Esc / outside-click can't accidentally bypass the
+  // rate-limit guardrail.
+  const rateLimitInfo: RateLimitInfo | null = useMemo(
+    () => (status === "error" ? parseRateLimit(error) : null),
+    [status, error]
+  );
+  const [rateLimitOpen, setRateLimitOpen] = useState(false);
+  useEffect(() => {
+    if (rateLimitInfo) setRateLimitOpen(true);
+  }, [rateLimitInfo]);
 
   // Esc stops generation — bound at the window level so the focus
   // can be anywhere on the page (per UIUX §7 keyboard shortcuts).
@@ -156,7 +173,7 @@ export default function ChatPage() {
         <ConversationScrollButton />
       </Conversation>
 
-      {error ? (
+      {error && !rateLimitOpen ? (
         <ErrorBanner
           message={error.message ?? "La requête a échoué."}
           onRetry={() => regenerate()}
@@ -171,10 +188,16 @@ export default function ChatPage() {
       ) : null}
 
       <PromptDock
-        limitReached={atLimit}
+        limitReached={atLimit || rateLimitOpen}
         onStop={() => stop()}
         onSubmit={handleSubmit}
         status={status}
+      />
+
+      <RateLimitModal
+        info={rateLimitInfo}
+        onAcknowledge={() => setRateLimitOpen(false)}
+        open={rateLimitOpen}
       />
     </div>
   );
