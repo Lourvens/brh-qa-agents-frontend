@@ -9,6 +9,7 @@ import { useMemo } from "react";
 import type { UIMessage } from "ai";
 
 import { useSmoothStreamingText } from "@/hooks/useSmoothStreamingText";
+import { A2uiSurfaceList } from "./a2ui/surface-list";
 import { AgentStatus } from "./AgentStatus";
 import { AgentTrace } from "./AgentTrace";
 import {
@@ -18,7 +19,8 @@ import {
 } from "../_lib/message-parts";
 
 /**
- * Renders the dynamic agent status, streamed answer, and source citations.
+ * Renders the dynamic agent status, streamed answer, source citations,
+ * and A2UI surfaces (e.g. charts emitted via ``render_chart``).
  */
 export function AssistantParts({
   parts,
@@ -43,6 +45,8 @@ export function AssistantParts({
       {visibleBody || streaming ? (
         <MessageResponse streaming={streaming}>{visibleBody}</MessageResponse>
       ) : null}
+
+      <A2uiSurfaceList parts={parts} />
 
       {sources.length > 0 ? (
         <Sources>

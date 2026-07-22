@@ -35,6 +35,30 @@ function retrievalLines(output: unknown): string[] {
   return [summary, ...documents];
 }
 
+function chartSurfaceLine(part: { id: string; data: unknown }): string {
+  // One line per A2UI surface emission. The envelope discriminator
+  // (createSurface / updateComponents / deleteSurface) tells the
+  // operator what kind of surface change happened.
+  const data = part.data;
+  if (data && typeof data === "object") {
+    if ("createSurface" in data) {
+      const cs = (data as { createSurface: { catalogId?: string } })
+        .createSurface;
+      return `Surface A2UI créée : ${part.id} (${cs?.catalogId ?? "brh/v1"})`;
+    }
+    if ("updateComponents" in data) {
+      return `Composants A2UI mis à jour : ${part.id}`;
+    }
+    if ("updateDataModel" in data) {
+      return `Données A2UI mises à jour : ${part.id}`;
+    }
+    if ("deleteSurface" in data) {
+      return `Surface A2UI supprimée : ${part.id}`;
+    }
+  }
+  return `Surface A2UI : ${part.id}`;
+}
+
 function traceLines(parts: UIMessage["parts"]): string[] {
   return parts.flatMap((part) => {
     if (part.type === "reasoning") {
@@ -42,6 +66,17 @@ function traceLines(parts: UIMessage["parts"]): string[] {
         .split(/\n+/)
         .map((line) => line.trim())
         .filter(Boolean);
+    }
+
+    // A2UI surfaces arrive as ``data-a2ui`` custom parts; surface
+    // a single trace line per part so the operator sees when a
+    // chart / table / form landed on the user’s canvas.
+    if (part.type === "data-a2ui") {
+      const a2uiPart = part as unknown as {
+        id: string;
+        data: unknown;
+      };
+      return [chartSurfaceLine(a2uiPart)];
     }
 
     const [tool] = toolParts([part]);
