@@ -3,12 +3,9 @@ import { UIMessage } from "ai";
 import { createStreamLoggingTransform, log } from "./stream-logging";
 
 export const dynamic = "force-dynamic";
-// 10 minutes — the longest observed Pinecone retrieval + Claude
-// reasoning chain on the Modal backend fits well inside this window.
-// Vercel's default 60s ceiling cuts off mid-stream on multi-tool
-// runs (long A2UI chart payloads); bumping this on the Hobby plan
-// lifts that ceiling without any other change required.
-export const maxDuration = 600;
+// Vercel Hobby plan caps ``maxDuration`` at 300s; leaving unset so
+// the platform default applies. Re-introduce a higher value when
+// upgrading to Pro/Enterprise.
 
 type HistoryTurn = { role: "user" | "assistant"; content: string };
 
