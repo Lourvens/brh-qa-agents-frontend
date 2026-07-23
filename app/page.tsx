@@ -23,6 +23,7 @@ import { PendingAssistantMessage } from "./_components/PendingAssistantMessage";
 import { PromptDock } from "./_components/PromptDock";
 import { RateLimitModal } from "./_components/RateLimitModal";
 import { ThreadLimitBanner } from "./_components/ThreadLimitBanner";
+import { UserMessageEdit } from "./_components/UserMessageEdit";
 import { parseRateLimit, type RateLimitInfo } from "./_lib/rate-limit";
 import { textParts } from "./_lib/message-parts";
 import { SUGGESTIONS } from "./_lib/prompts";
@@ -147,6 +148,24 @@ export default function ChatPage() {
     sendMessage({ text: userText });
   };
 
+  // ID of the most recent user message in the thread, used to gate the
+  // "Réécrire" affordance below. Computed once per render so we don't
+  // walk the array for every message.
+  const lastUserMessageId = useMemo(
+    () => messages.findLast((m) => m.role === "user")?.id,
+    [messages],
+  );
+
+  // Replace the user's most recent question with newText and re-issue
+  // it. Truncates from this user message onwards; the assistant's
+  // prior answer goes away with it.
+  const editUserMessage = (userMessageId: string, newText: string) => {
+    const idx = messages.findIndex((m) => m.id === userMessageId);
+    if (idx === -1) return;
+    setMessages(messages.slice(0, idx));
+    sendMessage({ text: newText });
+  };
+
   return (
     <div className="flex h-svh flex-col bg-background">
       <Header />
@@ -171,6 +190,8 @@ export default function ChatPage() {
                 const streaming = isLastAssistant && isStreaming;
                 const assistantText =
                   message.role === "assistant" ? textParts(message.parts) : "";
+                const isLastUserMessage =
+                  message.role === "user" && message.id === lastUserMessageId;
                 return (
                   <Message key={message.id} from={message.role}>
                     <MessageContent>
@@ -188,6 +209,15 @@ export default function ChatPage() {
                         <MessageActions
                           text={assistantText}
                           onRetry={() => retryAssistant(message.id)}
+                          disabled={isStreaming}
+                        />
+                      ) : null}
+                      {isLastUserMessage && !isStreaming ? (
+                        <UserMessageEdit
+                          text={textParts(message.parts)}
+                          onSave={(newText) =>
+                            editUserMessage(message.id, newText)
+                          }
                           disabled={isStreaming}
                         />
                       ) : null}
