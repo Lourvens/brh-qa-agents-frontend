@@ -78,9 +78,9 @@ const STATUS_COPY: Record<ActivePhase, readonly string[]> = {
     "Patience, la réponse arrive d'ici quelques secondes…",
   ],
   unreachable: [
-    "Serveur momentanément inaccessible, nouvelle tentative…",
-    "Connexion au serveur impossible pour l'instant…",
-    "Impossible de joindre le serveur BRH, merci de patienter…",
+    "En attente de la réponse du serveur…",
+    "Le serveur traite votre demande…",
+    "Réponse du serveur imminente…",
   ],
 };
 
