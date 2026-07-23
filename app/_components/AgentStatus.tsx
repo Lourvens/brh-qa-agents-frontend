@@ -1,3 +1,17 @@
+/**
+ * Renders the per-phase status copy with a pulsing indicator. The copy
+ * rotates every ``ROTATION_MS`` so the operator sees fresh copy while
+ * the agent is mid-flight (Pinecone retrieval typically lands in 2-6
+ * s; the underlying phase stays ``searching`` the whole time). On a
+ * phase change, the rotation jumps to a fresh index inside the new
+ * phase's message set.
+ *
+ * This component is the single source of truth for the user-facing
+ * status line — it covers tools, reasoning, cold-start, connecting,
+ * etc. via the ``agentPhase`` / ``effectiveAgentPhase`` layer. There is
+ * no longer a separate ``ToolProgressLine`` overlay.
+ */
+
 import { useEffect, useState } from "react";
 
 import { useSmoothStreamingText } from "@/hooks/useSmoothStreamingText";
@@ -9,16 +23,22 @@ type AgentStatusProps = {
 
 type ActivePhase = Exclude<AgentPhase, "idle">;
 
-const STATUS_COPY: Record<ActivePhase, readonly [string, string, string]> = {
+const STATUS_COPY: Record<ActivePhase, readonly string[]> = {
   thinking: [
     "Analyse de votre question…",
     "Examen de votre demande…",
     "Préparation de la recherche…",
   ],
+  // Pinecone retrieval on the Modal backend typically lands in 2-6 s,
+  // and the agent stays in the ``searching`` phase the whole time. The
+  // richer copy (5 messages instead of 3) keeps the operator's eye
+  // moving until ``output-available`` lands.
   searching: [
-    "Recherche dans la documentation BRH…",
-    "Exploration des ressources de la BRH…",
-    "Recherche des passages pertinents…",
+    "Recherche dans la documentation BRH en cours…",
+    "Compilation des extraits récupérés…",
+    "Analyse des passages les plus pertinents…",
+    "Préparation des sources pour la réponse…",
+    "Tri des documents les plus utiles…",
   ],
   reading: [
     "Lecture des documents pertinents…",
@@ -30,10 +50,12 @@ const STATUS_COPY: Record<ActivePhase, readonly [string, string, string]> = {
     "Mise en perspective des résultats…",
     "Vérification des éléments recueillis…",
   ],
+  // Multi-tool case: copy focuses on parallel retrieval rather than
+  // the single-corpus flow above.
   researching: [
-    "Recherche complémentaire dans la documentation BRH…",
-    "Approfondissement de la recherche…",
-    "Vérification d’autres sources pertinentes…",
+    "Plusieurs outils s'exécutent en parallèle…",
+    "Compilation des résultats partiels…",
+    "Mise en commun des sources récupérées…",
   ],
   writing: [
     "Rédaction de la réponse…",
@@ -62,10 +84,7 @@ const STATUS_COPY: Record<ActivePhase, readonly [string, string, string]> = {
   ],
 };
 
-function randomStatus(phase: ActivePhase): string {
-  const messages = STATUS_COPY[phase];
-  return messages[Math.floor(Math.random() * messages.length)];
-}
+const ROTATION_MS = 5800;
 
 function AnimatedStatusText({ text }: { text: string }) {
   const [target, setTarget] = useState("");
@@ -82,15 +101,29 @@ function AnimatedStatusText({ text }: { text: string }) {
 }
 
 export function AgentStatus({ phase }: AgentStatusProps) {
-  const [statusText, setStatusText] = useState<string>(() =>
-    phase === "idle" ? "" : STATUS_COPY[phase][0]
-  );
+  const messages =
+    phase === "idle" ? ([] as readonly string[]) : STATUS_COPY[phase];
+  const [idx, setIdx] = useState(0);
 
+  // On phase change, jump to a fresh index inside the new phase's set
+  // so we don't carry over the previous phase's index.
   useEffect(() => {
-    if (phase !== "idle") setStatusText(randomStatus(phase));
-  }, [phase]);
+    if (phase === "idle" || messages.length === 0) return;
+    setIdx(Math.floor(Math.random() * messages.length));
+  }, [phase, messages.length]);
 
-  if (phase === "idle") return null;
+  // Within the same phase, cycle the message every ROTATION_MS so the
+  // user sees fresh copy while the agent is mid-flight (Pinecone
+  // retrieval, multi-tool reasoning, cold start, etc.).
+  useEffect(() => {
+    if (phase === "idle" || messages.length <= 1) return;
+    const id = setInterval(() => {
+      setIdx((current) => (current + 1) % messages.length);
+    }, ROTATION_MS);
+    return () => clearInterval(id);
+  }, [phase, messages.length]);
+
+  if (phase === "idle" || messages.length === 0) return null;
 
   return (
     <div
@@ -102,7 +135,7 @@ export function AgentStatus({ phase }: AgentStatusProps) {
         <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary/50 motion-reduce:hidden" />
         <span className="relative inline-flex size-2 rounded-full bg-primary" />
       </span>
-      <AnimatedStatusText key={statusText} text={statusText} />
+      <AnimatedStatusText key={`${phase}-${idx}`} text={messages[idx]} />
     </div>
   );
 }
