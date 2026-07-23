@@ -18,6 +18,7 @@ import { AssistantParts } from "./_components/AssistantParts";
 import { EmptyConversation } from "./_components/EmptyConversation";
 import { ErrorBanner } from "./_components/ErrorBanner";
 import { Header } from "./_components/Header";
+import { MessageActions } from "./_components/MessageActions";
 import { PendingAssistantMessage } from "./_components/PendingAssistantMessage";
 import { PromptDock } from "./_components/PromptDock";
 import { RateLimitModal } from "./_components/RateLimitModal";
@@ -131,6 +132,21 @@ export default function ChatPage() {
     setMessages([]);
   };
 
+  // Re-send the user message that produced a given assistant turn.
+  // Truncates messages up to (but not including) the user message and
+  // re-issues the same text via ``sendMessage`` — works on any assistant
+  // message, not just the last one.
+  const retryAssistant = (assistantId: string) => {
+    const idx = messages.findIndex((m) => m.id === assistantId);
+    if (idx <= 0) return;
+    const userMessage = messages[idx - 1];
+    if (userMessage.role !== "user") return;
+    const userText = textParts(userMessage.parts);
+    if (!userText) return;
+    setMessages(messages.slice(0, idx - 1));
+    sendMessage({ text: userText });
+  };
+
   return (
     <div className="flex h-svh flex-col bg-background">
       <Header />
@@ -153,6 +169,8 @@ export default function ChatPage() {
                   message.role === "assistant" &&
                   message.id === messages[messages.length - 1]?.id;
                 const streaming = isLastAssistant && isStreaming;
+                const assistantText =
+                  message.role === "assistant" ? textParts(message.parts) : "";
                 return (
                   <Message key={message.id} from={message.role}>
                     <MessageContent>
@@ -166,6 +184,13 @@ export default function ChatPage() {
                           {textParts(message.parts)}
                         </p>
                       )}
+                      {message.role === "assistant" && !streaming && assistantText ? (
+                        <MessageActions
+                          text={assistantText}
+                          onRetry={() => retryAssistant(message.id)}
+                          disabled={isStreaming}
+                        />
+                      ) : null}
                     </MessageContent>
                   </Message>
                 );
